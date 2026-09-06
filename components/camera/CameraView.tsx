@@ -10,18 +10,10 @@ type CameraViewProps = {
   onError?: (message: string) => void;
 };
 
-type DetectedBottle = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  score: number;
-};
-
 export default function CameraView({ onError }: CameraViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const [bottles, setBottles] = useState<DetectedBottle[]>([]);
+  const [status, setStatus] = useState("Kamera indítása...");
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -30,6 +22,8 @@ export default function CameraView({ onError }: CameraViewProps) {
 
     async function startCamera() {
       try {
+        setStatus("Kamera engedélyezése...");
+
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "environment" },
@@ -40,49 +34,41 @@ export default function CameraView({ onError }: CameraViewProps) {
         const video = videoRef.current;
 
         if (!video) {
-          return;
+          throw new Error("A kamera video elem nem található.");
         }
 
         video.srcObject = stream;
 
         await video.play();
 
-        // AI modell betöltése
+        setStatus("AI modell betöltése...");
+
         await initializeBottleDetector();
 
-        // Élő kamerakép elemzése
+        setStatus("🟢 AI betöltve – palack keresése...");
+
         function detectFrame() {
           if (!running) {
             return;
           }
 
           if (video.readyState >= 2) {
-            const timestamp = performance.now();
+            try {
+              const timestamp = performance.now();
 
-            const detections = detectBottles(video, timestamp);
+              const detections = detectBottles(video, timestamp);
 
-            const detectedBottles: DetectedBottle[] = detections
-              .map((detection) => {
-                const box = detection.boundingBox;
-                const category = detection.categories?.[0];
-
-                if (!box || !category) {
-                  return null;
-                }
-
-                return {
-                  x: box.originX,
-                  y: box.originY,
-                  width: box.width,
-                  height: box.height,
-                  score: category.score,
-                };
-              })
-              .filter(
-                (bottle): bottle is DetectedBottle => bottle !== null
-              );
-
-            setBottles(detectedBottles);
+              if (detections.length > 0) {
+                setStatus(
+                  `🟢 Palack találva: ${detections.length} db`
+                );
+              } else {
+                setStatus("🟢 AI működik – nincs palack felismerve");
+              }
+            } catch (error) {
+              console.error("Detektálási hiba:", error);
+              setStatus("🔴 Hiba az AI detektálás közben");
+            }
           }
 
           animationFrameId = requestAnimationFrame(detectFrame);
@@ -91,6 +77,8 @@ export default function CameraView({ onError }: CameraViewProps) {
         detectFrame();
       } catch (error) {
         console.error(error);
+
+        setStatus("🔴 Kamera vagy AI hiba");
 
         onError?.(
           "Nem sikerült elindítani a kamerát vagy az AI modellt."
@@ -122,24 +110,11 @@ export default function CameraView({ onError }: CameraViewProps) {
         className="absolute inset-0 h-full w-full object-cover"
       />
 
-      {/* AI detekciók */}
-      <div className="absolute inset-0 z-10">
-        {bottles.map((bottle, index) => (
-          <div
-            key={index}
-            className="absolute border-4 border-green-400"
-            style={{
-              left: `${(bottle.x / (videoRef.current?.videoWidth || 1)) * 100}%`,
-              top: `${(bottle.y / (videoRef.current?.videoHeight || 1)) * 100}%`,
-              width: `${(bottle.width / (videoRef.current?.videoWidth || 1)) * 100}%`,
-              height: `${(bottle.height / (videoRef.current?.videoHeight || 1)) * 100}%`,
-            }}
-          >
-            <div className="absolute -top-8 left-0 whitespace-nowrap rounded bg-green-400 px-2 py-1 text-sm font-bold text-black">
-              🍾 Bottle {Math.round(bottle.score * 100)}%
-            </div>
-          </div>
-        ))}
+      {/* AI állapot */}
+      <div className="absolute left-1/2 top-5 z-50 -translate-x-1/2">
+        <div className="rounded-2xl bg-black/75 px-5 py-3 text-center text-sm font-semibold text-white backdrop-blur-sm">
+          {status}
+        </div>
       </div>
     </div>
   );
