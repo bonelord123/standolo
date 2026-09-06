@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Detection } from "@mediapipe/tasks-vision";
+
 import {
   initializeBottleDetector,
   detectBottles,
@@ -8,9 +10,17 @@ import {
 
 type CameraViewProps = {
   onError?: (message: string) => void;
+  onDetections?: (
+    detections: Detection[],
+    videoWidth: number,
+    videoHeight: number
+  ) => void;
 };
 
-export default function CameraView({ onError }: CameraViewProps) {
+export default function CameraView({
+  onError,
+  onDetections,
+}: CameraViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [status, setStatus] = useState("Kamera indítása...");
@@ -61,30 +71,46 @@ export default function CameraView({ onError }: CameraViewProps) {
             try {
               const timestamp = performance.now();
 
-              const detections = detectBottles(video, timestamp);
+              const detections = detectBottles(
+                video,
+                timestamp
+              );
+
+              onDetections?.(
+                detections,
+                video.videoWidth,
+                video.videoHeight
+              );
 
               if (detections.length > 0) {
                 setStatus(
                   `${detections.length} palack találva`
                 );
               } else {
-                setStatus(
-                  "Nincs palack felismerve"
-                );
+                setStatus("Nincs palack felismerve");
               }
             } catch (error) {
-              console.error("Detektálási hiba:", error);
+              console.error(
+                "Detektálási hiba:",
+                error
+              );
 
-              setStatus("Hiba az AI detektálás közben");
+              setStatus(
+                "Hiba az AI detektálás közben"
+              );
             }
           }
 
-          animationFrameId = requestAnimationFrame(detectFrame);
+          animationFrameId =
+            requestAnimationFrame(detectFrame);
         }
 
         detectFrame();
       } catch (error) {
-        console.error("Kamera/AI hiba:", error);
+        console.error(
+          "Kamera/AI hiba:",
+          error
+        );
 
         setStatus("Kamera vagy AI hiba");
 
@@ -102,10 +128,12 @@ export default function CameraView({ onError }: CameraViewProps) {
       cancelAnimationFrame(animationFrameId);
 
       if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+        stream
+          .getTracks()
+          .forEach((track) => track.stop());
       }
     };
-  }, [onError]);
+  }, [onError, onDetections]);
 
   return (
     <div className="absolute inset-0">

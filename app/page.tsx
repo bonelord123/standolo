@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Detection } from "@mediapipe/tasks-vision";
 
 import CameraView from "@/components/camera/CameraView";
 import BottleOverlay from "@/components/camera/BottleOverlay";
@@ -8,16 +9,34 @@ import BottleOverlay from "@/components/camera/BottleOverlay";
 export default function Home() {
   const [cameraError, setCameraError] = useState("");
 
+  const [detections, setDetections] = useState<Detection[]>([]);
+  const [videoSize, setVideoSize] = useState({
+    width: 0,
+    height: 0,
+  });
+
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-black">
-
-      {/* Kamera réteg */}
+      {/* Kamera */}
       <div className="absolute inset-0 z-0">
-        <CameraView onError={setCameraError} />
+        <CameraView
+          onError={setCameraError}
+          onDetections={(newDetections, width, height) => {
+            setDetections(newDetections);
+            setVideoSize({
+              width,
+              height,
+            });
+          }}
+        />
       </div>
 
-      {/* Minden, ami a kamera fölött jelenik meg */}
-      <BottleOverlay />
+      {/* AI palackkeretek */}
+      <BottleOverlay
+        detections={detections}
+        videoWidth={videoSize.width}
+        videoHeight={videoSize.height}
+      />
 
       {/* Kamera hiba */}
       {cameraError && (
@@ -25,7 +44,6 @@ export default function Home() {
           {cameraError}
         </div>
       )}
-
     </main>
   );
 }
