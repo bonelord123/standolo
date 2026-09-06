@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Detection } from "@mediapipe/tasks-vision";
 
 import CameraView from "@/components/camera/CameraView";
@@ -15,19 +15,29 @@ export default function Home() {
     height: 0,
   });
 
+  const handleDetections = useCallback(
+    (
+      newDetections: Detection[],
+      width: number,
+      height: number
+    ) => {
+      setDetections(newDetections);
+
+      setVideoSize({
+        width,
+        height,
+      });
+    },
+    []
+  );
+
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-black">
       {/* Kamera */}
       <div className="absolute inset-0 z-0">
         <CameraView
           onError={setCameraError}
-          onDetections={(newDetections, width, height) => {
-            setDetections(newDetections);
-            setVideoSize({
-              width,
-              height,
-            });
-          }}
+          onDetections={handleDetections}
         />
       </div>
 
