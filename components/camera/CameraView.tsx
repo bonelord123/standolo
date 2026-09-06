@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import {
+  initializeBottleDetector,
+  detectBottles,
+} from "@/lib/vision/bottleDetector";
 
 type CameraViewProps = {
   onError?: (message: string) => void;
@@ -11,6 +15,7 @@ export default function CameraView({ onError }: CameraViewProps) {
 
   useEffect(() => {
     let stream: MediaStream | null = null;
+    let animationFrameId: number;
 
     async function startCamera() {
       try {
@@ -21,14 +26,38 @@ export default function CameraView({ onError }: CameraViewProps) {
           audio: false,
         });
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+        const video = videoRef.current;
+
+        if (!video) {
+          return;
         }
+
+        video.srcObject = stream;
+
+        await video.play();
+
+        // AI modell betöltése
+        await initializeBottleDetector();
+
+        // Élő kamerakép folyamatos elemzése
+        function detectFrame() {
+          if (video.readyState >= 2) {
+            const timestamp = performance.now();
+
+            const detections = detectBottles(video, timestamp);
+
+            console.log("Palackok:", detections);
+          }
+
+          animationFrameId = requestAnimationFrame(detectFrame);
+        }
+
+        detectFrame();
       } catch (error) {
         console.error(error);
 
         onError?.(
-          "Nem sikerült hozzáférni a kamerához. Engedélyezd a kamera használatát."
+          "Nem sikerült elindítani a kamerát vagy az AI modellt."
         );
       }
     }
@@ -36,6 +65,8 @@ export default function CameraView({ onError }: CameraViewProps) {
     startCamera();
 
     return () => {
+      cancelAnimationFrame(animationFrameId);
+
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
