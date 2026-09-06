@@ -1,107 +1,46 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  initializeBottleDetector,
-  detectBottles,
-} from "@/lib/vision/bottleDetector";
 
-type CameraViewProps = {
-  onError?: (message: string) => void;
-};
-
-export default function CameraView({ onError }: CameraViewProps) {
+export default function CameraView() {
   const videoRef = useRef<HTMLVideoElement>(null);
-
-  const [status, setStatus] = useState("Kamera indítása...");
+  const [status, setStatus] = useState("TESZT: CameraView betöltve");
 
   useEffect(() => {
-    let stream: MediaStream | null = null;
-    let animationFrameId: number;
-    let running = true;
+    setStatus("TESZT: useEffect működik");
 
     async function startCamera() {
       try {
-        setStatus("Kamera engedélyezése...");
+        setStatus("TESZT: kamera indítása...");
 
-        stream = await navigator.mediaDevices.getUserMedia({
+        const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: "environment" },
           },
           audio: false,
         });
 
-        const video = videoRef.current;
-
-        if (!video) {
-          throw new Error("A kamera video elem nem található.");
+        if (!videoRef.current) {
+          setStatus("TESZT: video elem hiányzik");
+          return;
         }
 
-        video.srcObject = stream;
+        videoRef.current.srcObject = stream;
 
-        await video.play();
+        await videoRef.current.play();
 
-        setStatus("AI modell betöltése...");
-
-        await initializeBottleDetector();
-
-        setStatus("🟢 AI betöltve – palack keresése...");
-
-        function detectFrame() {
-          if (!running) {
-            return;
-          }
-
-          if (video.readyState >= 2) {
-            try {
-              const timestamp = performance.now();
-
-              const detections = detectBottles(video, timestamp);
-
-              if (detections.length > 0) {
-                setStatus(
-                  `🟢 Palack találva: ${detections.length} db`
-                );
-              } else {
-                setStatus("🟢 AI működik – nincs palack felismerve");
-              }
-            } catch (error) {
-              console.error("Detektálási hiba:", error);
-              setStatus("🔴 Hiba az AI detektálás közben");
-            }
-          }
-
-          animationFrameId = requestAnimationFrame(detectFrame);
-        }
-
-        detectFrame();
+        setStatus("TESZT: KAMERA MŰKÖDIK");
       } catch (error) {
         console.error(error);
-
-        setStatus("🔴 Kamera vagy AI hiba");
-
-        onError?.(
-          "Nem sikerült elindítani a kamerát vagy az AI modellt."
-        );
+        setStatus("TESZT: KAMERA HIBA");
       }
     }
 
     startCamera();
-
-    return () => {
-      running = false;
-
-      cancelAnimationFrame(animationFrameId);
-
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [onError]);
+  }, []);
 
   return (
     <div className="absolute inset-0">
-      {/* Kamera */}
       <video
         ref={videoRef}
         autoPlay
@@ -110,9 +49,8 @@ export default function CameraView({ onError }: CameraViewProps) {
         className="absolute inset-0 h-full w-full object-cover"
       />
 
-      {/* AI állapot */}
-      <div className="absolute left-1/2 top-5 z-50 -translate-x-1/2">
-        <div className="rounded-2xl bg-black/75 px-5 py-3 text-center text-sm font-semibold text-white backdrop-blur-sm">
+      <div className="absolute left-1/2 top-5 z-[100] -translate-x-1/2">
+        <div className="rounded-2xl bg-red-600 px-6 py-4 text-center text-lg font-bold text-white">
           {status}
         </div>
       </div>
