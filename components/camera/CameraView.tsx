@@ -31,15 +31,13 @@ export default function CameraView({ onError }: CameraViewProps) {
           audio: false,
         });
 
-        const video = videoRef.current;
-
-        if (!video) {
+        if (!videoRef.current) {
           throw new Error("A video elem nem található.");
         }
 
-        video.srcObject = stream;
+        videoRef.current.srcObject = stream;
 
-        await video.play();
+        await videoRef.current.play();
 
         setStatus("Kamera működik – AI modell betöltése...");
 
@@ -49,6 +47,13 @@ export default function CameraView({ onError }: CameraViewProps) {
 
         function detectFrame() {
           if (!running) {
+            return;
+          }
+
+          const video = videoRef.current;
+
+          if (!video) {
+            animationFrameId = requestAnimationFrame(detectFrame);
             return;
           }
 
@@ -70,9 +75,7 @@ export default function CameraView({ onError }: CameraViewProps) {
             } catch (error) {
               console.error("Detektálási hiba:", error);
 
-              setStatus(
-                "🔴 Hiba az AI detektálás közben"
-              );
+              setStatus("🔴 Hiba az AI detektálás közben");
             }
           }
 
