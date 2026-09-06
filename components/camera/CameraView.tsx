@@ -43,7 +43,7 @@ export default function CameraView({ onError }: CameraViewProps) {
 
         await initializeBottleDetector();
 
-        setStatus("🟢 AI betöltve – palack keresése...");
+        setStatus("Palack keresése...");
 
         function detectFrame() {
           if (!running) {
@@ -65,17 +65,17 @@ export default function CameraView({ onError }: CameraViewProps) {
 
               if (detections.length > 0) {
                 setStatus(
-                  `🟢 AI működik – ${detections.length} palack találva`
+                  `${detections.length} palack találva`
                 );
               } else {
                 setStatus(
-                  "🟢 AI működik – nincs palack felismerve"
+                  "Nincs palack felismerve"
                 );
               }
             } catch (error) {
               console.error("Detektálási hiba:", error);
 
-              setStatus("🔴 Hiba az AI detektálás közben");
+              setStatus("Hiba az AI detektálás közben");
             }
           }
 
@@ -86,7 +86,7 @@ export default function CameraView({ onError }: CameraViewProps) {
       } catch (error) {
         console.error("Kamera/AI hiba:", error);
 
-        setStatus("🔴 Kamera vagy AI hiba");
+        setStatus("Kamera vagy AI hiba");
 
         onError?.(
           "Nem sikerült elindítani a kamerát vagy az AI modellt."
@@ -118,7 +118,7 @@ export default function CameraView({ onError }: CameraViewProps) {
         className="absolute inset-0 h-full w-full object-cover"
       />
 
-      {/* AI állapot */}
+      {/* Állapot */}
       <div className="absolute left-1/2 top-5 z-[100] -translate-x-1/2">
         <div className="rounded-2xl bg-red-600 px-6 py-4 text-center text-lg font-bold text-white">
           {status}
