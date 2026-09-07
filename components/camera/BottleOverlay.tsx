@@ -26,7 +26,7 @@ export default function BottleOverlay({
     height: 0,
   });
 
-  const stableBox = useRef<Box | null>(null);
+  const stableBoxes = useRef<Box[]>([]);
 
   useEffect(() => {
     function updateSize() {
@@ -68,76 +68,92 @@ export default function BottleOverlay({
   const cropY =
     (renderedHeight - screenSize.height) / 2;
 
-  const detection = detections[0];
-
-  if (!detection?.boundingBox) {
-    return null;
-  }
-
-  const box = detection.boundingBox;
-
-  const targetBox: Box = {
-    left: box.originX * scale - cropX,
-    top: box.originY * scale - cropY,
-    width: box.width * scale,
-    height: box.height * scale,
-  };
-
-  /*
-   * Erős stabilizálás.
-   * Minél kisebb ez az érték, annál kevésbé ugrál.
-   */
   const smoothing = 0.15;
 
-  if (!stableBox.current) {
-    stableBox.current = targetBox;
-  } else {
-    stableBox.current = {
-      left:
-        stableBox.current.left +
-        (targetBox.left - stableBox.current.left) *
-          smoothing,
+  const boxes: {
+    box: Box;
+    score?: number;
+  }[] = [];
 
-      top:
-        stableBox.current.top +
-        (targetBox.top - stableBox.current.top) *
-          smoothing,
+  detections.forEach((detection, index) => {
+    if (!detection.boundingBox) {
+      return;
+    }
 
-      width:
-        stableBox.current.width +
-        (targetBox.width - stableBox.current.width) *
-          smoothing,
+    const box = detection.boundingBox;
 
-      height:
-        stableBox.current.height +
-        (targetBox.height - stableBox.current.height) *
-          smoothing,
+    const targetBox: Box = {
+      left: box.originX * scale - cropX,
+      top: box.originY * scale - cropY,
+      width: box.width * scale,
+      height: box.height * scale,
     };
+
+    const previousBox =
+      stableBoxes.current[index];
+
+    if (!previousBox) {
+      stableBoxes.current[index] = targetBox;
+    } else {
+      stableBoxes.current[index] = {
+        left:
+          previousBox.left +
+          (targetBox.left - previousBox.left) *
+            smoothing,
+
+        top:
+          previousBox.top +
+          (targetBox.top - previousBox.top) *
+            smoothing,
+
+        width:
+          previousBox.width +
+          (targetBox.width - previousBox.width) *
+            smoothing,
+
+        height:
+          previousBox.height +
+          (targetBox.height - previousBox.height) *
+            smoothing,
+      };
+    }
+
+    boxes.push({
+      box: stableBoxes.current[index],
+      score:
+        detection.categories?.[0]?.score,
+    });
+  });
+
+  if (detections.length === 0) {
+    stableBoxes.current = [];
   }
-
-  const stable = stableBox.current;
-
-  const score =
-    detection.categories?.[0]?.score;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-30">
-      <div
-        className="absolute rounded-lg border-4 border-green-400"
-        style={{
-          left: `${stable.left}px`,
-          top: `${stable.top}px`,
-          width: `${stable.width}px`,
-          height: `${stable.height}px`,
-        }}
-      >
-        <div className="absolute -top-8 left-0 rounded-md bg-green-500 px-2 py-1 text-sm font-bold text-black">
-          Palack
-          {score
-            ? ` ${Math.round(score * 100)}%`
-            : ""}
-        </div>
-      </div>
+      {boxes.map((item, index) => {
+        const { box, score } = item;
+
+        return (
+          <div
+            key={index}
+            className="absolute rounded-lg border-4 border-green-400"
+            style={{
+              left: `${box.left}px`,
+              top: `${box.top}px`,
+              width: `${box.width}px`,
+              height: `${box.height}px`,
+            }}
+          >
+            <div className="absolute -top-8 left-0 rounded-md bg-green-500 px-2 py-1 text-sm font-bold text-black">
+              Palack
+              {score
+                ? ` ${Math.round(score * 100)}%`
+                : ""}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
