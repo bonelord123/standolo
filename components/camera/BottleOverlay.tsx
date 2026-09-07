@@ -32,8 +32,8 @@ export default function BottleOverlay({
   const [videoRect, setVideoRect] =
     useState<DOMRect | null>(null);
 
-  const stableBox =
-    useRef<Box | null>(null);
+  const stableBoxes =
+    useRef<Box[]>([]);
 
   useEffect(() => {
     const updateRect = () => {
@@ -88,105 +88,118 @@ export default function BottleOverlay({
     return null;
   }
 
-  const detection = detections[0];
-
-  if (!detection?.boundingBox) {
-    return null;
-  }
-
-  const box = detection.boundingBox;
-
-  /*
-   * A MediaPipe koordináták a videó saját
-   * pixelméretében vannak.
-   *
-   * Ezeket átméretezzük a ténylegesen
-   * megjelenített video méretére.
-   */
-
   const scaleX =
     videoRect.width / videoWidth;
 
   const scaleY =
     videoRect.height / videoHeight;
 
-  const targetBox: Box = {
-    left:
-      videoRect.left +
-      box.originX * scaleX,
-
-    top:
-      videoRect.top +
-      box.originY * scaleY,
-
-    width:
-      box.width * scaleX,
-
-    height:
-      box.height * scaleY,
-  };
-
-  /*
-   * Stabilizálás:
-   * a keret nem követi azonnal az AI
-   * minden apró változását.
-   */
-
   const smoothing = 0.1;
 
-  if (!stableBox.current) {
-    stableBox.current = targetBox;
-  } else {
-    stableBox.current = {
-      left:
-        stableBox.current.left +
-        (targetBox.left -
-          stableBox.current.left) *
-          smoothing,
+  const boxes = detections
+    .map((detection, index) => {
+      if (!detection.boundingBox) {
+        return null;
+      }
 
-      top:
-        stableBox.current.top +
-        (targetBox.top -
-          stableBox.current.top) *
-          smoothing,
+      const box = detection.boundingBox;
 
-      width:
-        stableBox.current.width +
-        (targetBox.width -
-          stableBox.current.width) *
-          smoothing,
+      const targetBox: Box = {
+        left:
+          videoRect.left +
+          box.originX * scaleX,
 
-      height:
-        stableBox.current.height +
-        (targetBox.height -
-          stableBox.current.height) *
-          smoothing,
-    };
+        top:
+          videoRect.top +
+          box.originY * scaleY,
+
+        width:
+          box.width * scaleX,
+
+        height:
+          box.height * scaleY,
+      };
+
+      const previousBox =
+        stableBoxes.current[index];
+
+      if (!previousBox) {
+        stableBoxes.current[index] =
+          targetBox;
+      } else {
+        stableBoxes.current[index] = {
+          left:
+            previousBox.left +
+            (targetBox.left -
+              previousBox.left) *
+              smoothing,
+
+          top:
+            previousBox.top +
+            (targetBox.top -
+              previousBox.top) *
+              smoothing,
+
+          width:
+            previousBox.width +
+            (targetBox.width -
+              previousBox.width) *
+              smoothing,
+
+          height:
+            previousBox.height +
+            (targetBox.height -
+              previousBox.height) *
+              smoothing,
+        };
+      }
+
+      return {
+        box: stableBoxes.current[index],
+        score:
+          detection.categories?.[0]?.score,
+      };
+    })
+    .filter(
+      (
+        item
+      ): item is {
+        box: Box;
+        score: number | undefined;
+      } => item !== null
+    );
+
+  if (detections.length === 0) {
+    stableBoxes.current = [];
   }
-
-  const stable = stableBox.current;
-
-  const score =
-    detection.categories?.[0]?.score;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-30">
-      <div
-        className="absolute rounded-lg border-4 border-green-400"
-        style={{
-          left: `${stable.left}px`,
-          top: `${stable.top}px`,
-          width: `${stable.width}px`,
-          height: `${stable.height}px`,
-        }}
-      >
-        <div className="absolute -top-8 left-0 rounded-md bg-green-500 px-2 py-1 text-sm font-bold text-black">
-          Palack
-          {score
-            ? ` ${Math.round(score * 100)}%`
-            : ""}
-        </div>
-      </div>
+      {boxes.map((item, index) => {
+        const { box, score } = item;
+
+        return (
+          <div
+            key={index}
+            className="absolute rounded-lg border-4 border-green-400"
+            style={{
+              left: `${box.left}px`,
+              top: `${box.top}px`,
+              width: `${box.width}px`,
+              height: `${box.height}px`,
+            }}
+          >
+            <div className="absolute -top-8 left-0 rounded-md bg-green-500 px-2 py-1 text-sm font-bold text-black">
+              Palack
+              {score
+                ? ` ${Math.round(
+                    score * 100
+                  )}%`
+                : ""}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
