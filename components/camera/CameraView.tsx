@@ -1,6 +1,4 @@
-```tsx
 "use client";
-
 import {
   RefObject,
   useEffect,
@@ -107,13 +105,7 @@ export default function CameraView({
                 currentVideo.videoHeight
               );
 
-              // A képernyőn jelenleg egyetlen
-              // stabil keretet használunk.
-              // A számlálót ehhez igazítjuk.
-              const hasBottle =
-                detections.length > 0;
-
-              if (hasBottle) {
+              if (detections.length > 0) {
                 setStatus(
                   "1 palack találva"
                 );
