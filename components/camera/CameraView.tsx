@@ -1,3 +1,4 @@
+```tsx
 "use client";
 
 import {
@@ -106,9 +107,15 @@ export default function CameraView({
                 currentVideo.videoHeight
               );
 
-              if (detections.length > 0) {
+              // A képernyőn jelenleg egyetlen
+              // stabil keretet használunk.
+              // A számlálót ehhez igazítjuk.
+              const hasBottle =
+                detections.length > 0;
+
+              if (hasBottle) {
                 setStatus(
-                  `${detections.length} palack találva`
+                  "1 palack találva"
                 );
               } else {
                 setStatus(
@@ -187,3 +194,4 @@ export default function CameraView({
     </div>
   );
 }
+```
