@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { Detection } from "@mediapipe/tasks-vision";
 
 import CameraView from "@/components/camera/CameraView";
@@ -14,8 +14,6 @@ export default function Home() {
     width: 0,
     height: 0,
   });
-
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   const handleDetections = useCallback(
     (
@@ -35,21 +33,22 @@ export default function Home() {
 
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-black">
+      {/* Kamera */}
       <div className="absolute inset-0 z-0">
         <CameraView
-          videoRef={videoRef}
           onError={setCameraError}
           onDetections={handleDetections}
         />
       </div>
 
+      {/* AI palackkeretek */}
       <BottleOverlay
-        videoRef={videoRef}
         detections={detections}
         videoWidth={videoSize.width}
         videoHeight={videoSize.height}
       />
 
+      {/* Kamera hiba */}
       {cameraError && (
         <div className="absolute inset-x-5 top-1/2 z-50 -translate-y-1/2 rounded-2xl bg-red-600 p-5 text-center text-white">
           {cameraError}
