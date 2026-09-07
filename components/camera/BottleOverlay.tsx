@@ -27,17 +27,16 @@ export default function BottleOverlay({
   const stableBox = useRef<Box | null>(null);
 
   useEffect(() => {
-    const video = document.querySelector(
-      "video"
-    );
+    const videoElement =
+      document.querySelector("video");
 
-    if (!video) {
+    if (!videoElement) {
       return;
     }
 
     function updateRect() {
       setVideoRect(
-        video.getBoundingClientRect()
+        videoElement.getBoundingClientRect()
       );
     }
 
@@ -82,18 +81,12 @@ export default function BottleOverlay({
 
   const box = detection.boundingBox;
 
-  /*
-   * A video tényleges megjelenített mérete.
-   */
   const scaleX =
     videoRect.width / videoWidth;
 
   const scaleY =
     videoRect.height / videoHeight;
 
-  /*
-   * MediaPipe koordináta → képernyő koordináta.
-   */
   const targetBox: Box = {
     left:
       videoRect.left +
@@ -110,10 +103,6 @@ export default function BottleOverlay({
       box.height * scaleY,
   };
 
-  /*
-   * Stabilizálás.
-   * A keret nem ugrik minden AI-frame-re.
-   */
   const smoothing = 0.12;
 
   if (!stableBox.current) {
