@@ -28,11 +28,11 @@ export default function BottleOverlay({
 
   useEffect(() => {
     const videoElement =
-      document.querySelector("video");
+  document.querySelector("video") as HTMLVideoElement | null;
 
-    if (!videoElement) {
-      return;
-    }
+if (!videoElement) {
+  return;
+}
 
     function updateRect() {
       setVideoRect(
