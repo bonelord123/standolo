@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  RefObject,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import { Detection } from "@mediapipe/tasks-vision";
 
 type BottleOverlayProps = {
+  videoRef: RefObject<HTMLVideoElement | null>;
   detections: Detection[];
   videoWidth: number;
   videoHeight: number;
@@ -17,6 +24,7 @@ type Box = {
 };
 
 export default function BottleOverlay({
+  videoRef,
   detections,
   videoWidth,
   videoHeight,
@@ -24,23 +32,28 @@ export default function BottleOverlay({
   const [videoRect, setVideoRect] =
     useState<DOMRect | null>(null);
 
-  const stableBox = useRef<Box | null>(null);
+  const stableBox =
+    useRef<Box | null>(null);
 
   useEffect(() => {
-    const videoElement =
-  document.querySelector("video") as HTMLVideoElement | null;
+    const updateRect = () => {
+      const video = videoRef.current;
 
-if (!videoElement) {
-  return;
-}
+      if (!video) {
+        return;
+      }
 
-    function updateRect() {
       setVideoRect(
-        videoElement.getBoundingClientRect()
+        video.getBoundingClientRect()
       );
-    }
+    };
 
     updateRect();
+
+    const interval = window.setInterval(
+      updateRect,
+      100
+    );
 
     window.addEventListener(
       "resize",
@@ -53,6 +66,8 @@ if (!videoElement) {
     );
 
     return () => {
+      window.clearInterval(interval);
+
       window.removeEventListener(
         "resize",
         updateRect
@@ -63,7 +78,7 @@ if (!videoElement) {
         updateRect
       );
     };
-  }, []);
+  }, [videoRef]);
 
   if (
     !videoRect ||
@@ -80,6 +95,14 @@ if (!videoElement) {
   }
 
   const box = detection.boundingBox;
+
+  /*
+   * A MediaPipe koordináták a videó saját
+   * pixelméretében vannak.
+   *
+   * Ezeket átméretezzük a ténylegesen
+   * megjelenített video méretére.
+   */
 
   const scaleX =
     videoRect.width / videoWidth;
@@ -103,7 +126,13 @@ if (!videoElement) {
       box.height * scaleY,
   };
 
-  const smoothing = 0.12;
+  /*
+   * Stabilizálás:
+   * a keret nem követi azonnal az AI
+   * minden apró változását.
+   */
+
+  const smoothing = 0.1;
 
   if (!stableBox.current) {
     stableBox.current = targetBox;
