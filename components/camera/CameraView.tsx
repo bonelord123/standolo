@@ -41,13 +41,15 @@ export default function CameraView({
           audio: false,
         });
 
-        if (!videoRef.current) {
+        const video = videoRef.current;
+
+        if (!video) {
           throw new Error("A video elem nem található.");
         }
 
-        videoRef.current.srcObject = stream;
+        video.srcObject = stream;
 
-        await videoRef.current.play();
+        await video.play();
 
         setStatus("Kamera működik – AI modell betöltése...");
 
@@ -60,26 +62,31 @@ export default function CameraView({
             return;
           }
 
-          const video = videoRef.current;
+          const currentVideo = videoRef.current;
 
-          if (!video) {
-            animationFrameId = requestAnimationFrame(detectFrame);
+          if (!currentVideo) {
+            animationFrameId =
+              requestAnimationFrame(detectFrame);
             return;
           }
 
-          if (video.readyState >= 2) {
+          if (
+            currentVideo.readyState >= 2 &&
+            currentVideo.videoWidth > 0 &&
+            currentVideo.videoHeight > 0
+          ) {
             try {
               const timestamp = performance.now();
 
               const detections = detectBottles(
-                video,
+                currentVideo,
                 timestamp
               );
 
               onDetections?.(
                 detections,
-                video.videoWidth,
-                video.videoHeight
+                currentVideo.videoWidth,
+                currentVideo.videoHeight
               );
 
               if (detections.length > 0) {
@@ -137,7 +144,6 @@ export default function CameraView({
 
   return (
     <div className="absolute inset-0">
-      {/* Élő kamera */}
       <video
         ref={videoRef}
         autoPlay
@@ -146,7 +152,6 @@ export default function CameraView({
         className="absolute inset-0 h-full w-full object-cover"
       />
 
-      {/* Állapot */}
       <div className="absolute left-1/2 top-5 z-[100] -translate-x-1/2">
         <div className="rounded-2xl bg-red-600 px-6 py-4 text-center text-lg font-bold text-white">
           {status}
