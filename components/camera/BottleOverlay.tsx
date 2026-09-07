@@ -23,6 +23,11 @@ type Box = {
   height: number;
 };
 
+type OverlayBox = {
+  box: Box;
+  score?: number;
+};
+
 export default function BottleOverlay({
   videoRef,
   detections,
@@ -96,10 +101,12 @@ export default function BottleOverlay({
 
   const smoothing = 0.1;
 
-  const boxes = detections
-    .map((detection, index) => {
+  const boxes: OverlayBox[] = [];
+
+  detections.forEach(
+    (detection, index) => {
       if (!detection.boundingBox) {
-        return null;
+        return;
       }
 
       const box = detection.boundingBox;
@@ -154,20 +161,13 @@ export default function BottleOverlay({
         };
       }
 
-      return {
+      boxes.push({
         box: stableBoxes.current[index],
         score:
           detection.categories?.[0]?.score,
-      };
-    })
-    .filter(
-      (
-        item
-      ): item is {
-        box: Box;
-        score: number | undefined;
-      } => item !== null
-    );
+      });
+    }
+  );
 
   if (detections.length === 0) {
     stableBoxes.current = [];
@@ -191,7 +191,7 @@ export default function BottleOverlay({
           >
             <div className="absolute -top-8 left-0 rounded-md bg-green-500 px-2 py-1 text-sm font-bold text-black">
               Palack
-              {score
+              {score !== undefined
                 ? ` ${Math.round(
                     score * 100
                   )}%`
