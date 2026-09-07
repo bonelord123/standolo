@@ -21,147 +21,154 @@ export default function BottleOverlay({
   videoWidth,
   videoHeight,
 }: BottleOverlayProps) {
-  const [screenSize, setScreenSize] = useState({
-    width: 0,
-    height: 0,
-  });
+  const [videoRect, setVideoRect] =
+    useState<DOMRect | null>(null);
 
-  const smoothedBoxes = useRef<Box[]>([]);
+  const stableBox = useRef<Box | null>(null);
 
   useEffect(() => {
-    function updateSize() {
-      setScreenSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
+    const video = document.querySelector(
+      "video"
+    );
+
+    if (!video) {
+      return;
     }
 
-    updateSize();
+    function updateRect() {
+      setVideoRect(
+        video.getBoundingClientRect()
+      );
+    }
 
-    window.addEventListener("resize", updateSize);
+    updateRect();
+
+    window.addEventListener(
+      "resize",
+      updateRect
+    );
+
+    window.addEventListener(
+      "orientationchange",
+      updateRect
+    );
 
     return () => {
-      window.removeEventListener("resize", updateSize);
+      window.removeEventListener(
+        "resize",
+        updateRect
+      );
+
+      window.removeEventListener(
+        "orientationchange",
+        updateRect
+      );
     };
   }, []);
 
   if (
+    !videoRect ||
     !videoWidth ||
-    !videoHeight ||
-    !screenSize.width ||
-    !screenSize.height
+    !videoHeight
   ) {
     return null;
   }
 
-  /*
-   * A kamera object-cover módban jelenik meg.
-   * Ezért először kiszámoljuk a ténylegesen kirajzolt
-   * videó méretét és a levágás miatt keletkező eltolást.
-   */
+  const detection = detections[0];
 
-  const scale = Math.max(
-    screenSize.width / videoWidth,
-    screenSize.height / videoHeight
-  );
+  if (!detection?.boundingBox) {
+    return null;
+  }
 
-  const renderedWidth = videoWidth * scale;
-  const renderedHeight = videoHeight * scale;
-
-  const offsetX =
-    (screenSize.width - renderedWidth) / 2;
-
-  const offsetY =
-    (screenSize.height - renderedHeight) / 2;
-
-  const currentBoxes: Box[] = detections
-    .map((detection) => {
-      const box = detection.boundingBox;
-
-      if (!box) {
-        return null;
-      }
-
-      return {
-        left: box.originX * scale + offsetX,
-        top: box.originY * scale + offsetY,
-        width: box.width * scale,
-        height: box.height * scale,
-      };
-    })
-    .filter((box): box is Box => box !== null);
+  const box = detection.boundingBox;
 
   /*
-   * Egyszerű időbeli simítás.
-   * Nem engedi, hogy a keret minden egyes AI-frame-re
-   * azonnal nagyot ugorjon.
+   * A video tényleges megjelenített mérete.
    */
+  const scaleX =
+    videoRect.width / videoWidth;
 
-  const smoothing = 0.35;
+  const scaleY =
+    videoRect.height / videoHeight;
 
-  const newSmoothedBoxes = currentBoxes.map(
-    (box, index) => {
-      const previous =
-        smoothedBoxes.current[index];
+  /*
+   * MediaPipe koordináta → képernyő koordináta.
+   */
+  const targetBox: Box = {
+    left:
+      videoRect.left +
+      box.originX * scaleX,
 
-      if (!previous) {
-        return box;
-      }
+    top:
+      videoRect.top +
+      box.originY * scaleY,
 
-      return {
-        left:
-          previous.left +
-          (box.left - previous.left) *
-            smoothing,
+    width:
+      box.width * scaleX,
 
-        top:
-          previous.top +
-          (box.top - previous.top) *
-            smoothing,
+    height:
+      box.height * scaleY,
+  };
 
-        width:
-          previous.width +
-          (box.width - previous.width) *
-            smoothing,
+  /*
+   * Stabilizálás.
+   * A keret nem ugrik minden AI-frame-re.
+   */
+  const smoothing = 0.12;
 
-        height:
-          previous.height +
-          (box.height - previous.height) *
-            smoothing,
-      };
-    }
-  );
+  if (!stableBox.current) {
+    stableBox.current = targetBox;
+  } else {
+    stableBox.current = {
+      left:
+        stableBox.current.left +
+        (targetBox.left -
+          stableBox.current.left) *
+          smoothing,
 
-  smoothedBoxes.current = newSmoothedBoxes;
+      top:
+        stableBox.current.top +
+        (targetBox.top -
+          stableBox.current.top) *
+          smoothing,
+
+      width:
+        stableBox.current.width +
+        (targetBox.width -
+          stableBox.current.width) *
+          smoothing,
+
+      height:
+        stableBox.current.height +
+        (targetBox.height -
+          stableBox.current.height) *
+          smoothing,
+    };
+  }
+
+  const stable = stableBox.current;
+
+  const score =
+    detection.categories?.[0]?.score;
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-30">
-      {newSmoothedBoxes.map((box, index) => {
-        const detection = detections[index];
-
-        const score =
-          detection?.categories?.[0]?.score;
-
-        return (
-          <div
-            key={index}
-            className="absolute rounded-lg border-4 border-green-400"
-            style={{
-              left: `${box.left}px`,
-              top: `${box.top}px`,
-              width: `${box.width}px`,
-              height: `${box.height}px`,
-            }}
-          >
-            <div className="absolute -top-8 left-0 rounded-md bg-green-500 px-2 py-1 text-sm font-bold text-black">
-              Palack
-              {score
-                ? ` ${Math.round(score * 100)}%`
-                : ""}
-            </div>
-          </div>
-        );
-      })}
+    <div className="pointer-events-none fixed inset-0 z-30">
+      <div
+        className="absolute rounded-lg border-4 border-green-400"
+        style={{
+          left: `${stable.left}px`,
+          top: `${stable.top}px`,
+          width: `${stable.width}px`,
+          height: `${stable.height}px`,
+        }}
+      >
+        <div className="absolute -top-8 left-0 rounded-md bg-green-500 px-2 py-1 text-sm font-bold text-black">
+          Palack
+          {score
+            ? ` ${Math.round(score * 100)}%`
+            : ""}
+        </div>
+      </div>
     </div>
   );
 }
