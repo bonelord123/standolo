@@ -20,33 +20,21 @@ export default function BottleOverlay({
   const screenWidth = window.innerWidth;
   const screenHeight = window.innerHeight;
 
-  const videoAspect = videoWidth / videoHeight;
-  const screenAspect = screenWidth / screenHeight;
+  // Ugyanaz az object-cover számítás,
+  // amit a kamera megjelenítése használ.
+  const scale = Math.max(
+    screenWidth / videoWidth,
+    screenHeight / videoHeight
+  );
 
-  let scale: number;
-  let offsetX: number;
-  let offsetY: number;
+  const renderedWidth = videoWidth * scale;
+  const renderedHeight = videoHeight * scale;
 
-  if (screenAspect > videoAspect) {
-    scale = screenWidth / videoWidth;
+  const offsetX =
+    (screenWidth - renderedWidth) / 2;
 
-    const renderedHeight =
-      videoHeight * scale;
-
-    offsetX = 0;
-    offsetY =
-      (screenHeight - renderedHeight) / 2;
-  } else {
-    scale = screenHeight / videoHeight;
-
-    const renderedWidth =
-      videoWidth * scale;
-
-    offsetX =
-      (screenWidth - renderedWidth) / 2;
-
-    offsetY = 0;
-  }
+  const offsetY =
+    (screenHeight - renderedHeight) / 2;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-30">
@@ -77,10 +65,10 @@ export default function BottleOverlay({
             key={index}
             className="absolute rounded-lg border-4 border-green-400"
             style={{
-              left,
-              top,
-              width,
-              height,
+              left: `${left}px`,
+              top: `${top}px`,
+              width: `${width}px`,
+              height: `${height}px`,
             }}
           >
             <div className="absolute -top-8 left-0 rounded-md bg-green-500 px-2 py-1 text-sm font-bold text-black">
