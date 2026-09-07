@@ -1,200 +1,92 @@
 "use client";
 
-import {
-  RefObject,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-
 import { Detection } from "@mediapipe/tasks-vision";
 
 type BottleOverlayProps = {
-  videoRef: RefObject<HTMLVideoElement | null>;
   detections: Detection[];
   videoWidth: number;
   videoHeight: number;
 };
 
-type Box = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-};
-
-type OverlayBox = {
-  box: Box;
-  score?: number;
-};
-
 export default function BottleOverlay({
-  videoRef,
   detections,
   videoWidth,
   videoHeight,
 }: BottleOverlayProps) {
-  const [videoRect, setVideoRect] =
-    useState<DOMRect | null>(null);
-
-  const stableBoxes =
-    useRef<Box[]>([]);
-
-  useEffect(() => {
-    const updateRect = () => {
-      const video = videoRef.current;
-
-      if (!video) {
-        return;
-      }
-
-      setVideoRect(
-        video.getBoundingClientRect()
-      );
-    };
-
-    updateRect();
-
-    const interval = window.setInterval(
-      updateRect,
-      100
-    );
-
-    window.addEventListener(
-      "resize",
-      updateRect
-    );
-
-    window.addEventListener(
-      "orientationchange",
-      updateRect
-    );
-
-    return () => {
-      window.clearInterval(interval);
-
-      window.removeEventListener(
-        "resize",
-        updateRect
-      );
-
-      window.removeEventListener(
-        "orientationchange",
-        updateRect
-      );
-    };
-  }, [videoRef]);
-
-  if (
-    !videoRect ||
-    !videoWidth ||
-    !videoHeight
-  ) {
+  if (!videoWidth || !videoHeight) {
     return null;
   }
 
-  const scaleX =
-    videoRect.width / videoWidth;
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
 
-  const scaleY =
-    videoRect.height / videoHeight;
+  const videoAspect = videoWidth / videoHeight;
+  const screenAspect = screenWidth / screenHeight;
 
-  const smoothing = 0.1;
+  let scale: number;
+  let offsetX: number;
+  let offsetY: number;
 
-  const boxes: OverlayBox[] = [];
+  if (screenAspect > videoAspect) {
+    scale = screenWidth / videoWidth;
 
-  detections.forEach(
-    (detection, index) => {
-      if (!detection.boundingBox) {
-        return;
-      }
+    const renderedHeight =
+      videoHeight * scale;
 
-      const box = detection.boundingBox;
+    offsetX = 0;
+    offsetY =
+      (screenHeight - renderedHeight) / 2;
+  } else {
+    scale = screenHeight / videoHeight;
 
-      const targetBox: Box = {
-        left:
-          videoRect.left +
-          box.originX * scaleX,
+    const renderedWidth =
+      videoWidth * scale;
 
-        top:
-          videoRect.top +
-          box.originY * scaleY,
+    offsetX =
+      (screenWidth - renderedWidth) / 2;
 
-        width:
-          box.width * scaleX,
-
-        height:
-          box.height * scaleY,
-      };
-
-      const previousBox =
-        stableBoxes.current[index];
-
-      if (!previousBox) {
-        stableBoxes.current[index] =
-          targetBox;
-      } else {
-        stableBoxes.current[index] = {
-          left:
-            previousBox.left +
-            (targetBox.left -
-              previousBox.left) *
-              smoothing,
-
-          top:
-            previousBox.top +
-            (targetBox.top -
-              previousBox.top) *
-              smoothing,
-
-          width:
-            previousBox.width +
-            (targetBox.width -
-              previousBox.width) *
-              smoothing,
-
-          height:
-            previousBox.height +
-            (targetBox.height -
-              previousBox.height) *
-              smoothing,
-        };
-      }
-
-      boxes.push({
-        box: stableBoxes.current[index],
-        score:
-          detection.categories?.[0]?.score,
-      });
-    }
-  );
-
-  if (detections.length === 0) {
-    stableBoxes.current = [];
+    offsetY = 0;
   }
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-30">
-      {boxes.map((item, index) => {
-        const { box, score } = item;
+    <div className="pointer-events-none absolute inset-0 z-30">
+      {detections.map((detection, index) => {
+        const box = detection.boundingBox;
+
+        if (!box) {
+          return null;
+        }
+
+        const left =
+          box.originX * scale + offsetX;
+
+        const top =
+          box.originY * scale + offsetY;
+
+        const width =
+          box.width * scale;
+
+        const height =
+          box.height * scale;
+
+        const score =
+          detection.categories?.[0]?.score;
 
         return (
           <div
             key={index}
             className="absolute rounded-lg border-4 border-green-400"
             style={{
-              left: `${box.left}px`,
-              top: `${box.top}px`,
-              width: `${box.width}px`,
-              height: `${box.height}px`,
+              left,
+              top,
+              width,
+              height,
             }}
           >
             <div className="absolute -top-8 left-0 rounded-md bg-green-500 px-2 py-1 text-sm font-bold text-black">
               Palack
-              {score !== undefined
-                ? ` ${Math.round(
-                    score * 100
-                  )}%`
+              {score
+                ? ` ${Math.round(score * 100)}%`
                 : ""}
             </div>
           </div>
