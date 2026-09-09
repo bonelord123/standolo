@@ -4,281 +4,292 @@ import { useEffect, useRef, useState } from "react";
 import { Detection } from "@mediapipe/tasks-vision";
 
 type BottleOverlayProps = {
-  detections: Detection[];
-  videoWidth: number;
-  videoHeight: number;
+detections: Detection[];
+videoWidth: number;
+videoHeight: number;
 };
 
 type Box = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
+left: number;
+top: number;
+width: number;
+height: number;
 };
 
 type Track = {
-  id: number;
-  box: Box;
-  missingFrames: number;
+box: Box;
+missingFrames: number;
 };
 
 export default function BottleOverlay({
-  detections,
-  videoWidth,
-  videoHeight,
+detections,
+videoWidth,
+videoHeight,
 }: BottleOverlayProps) {
-  const [screenSize, setScreenSize] = useState({
-    width: 0,
-    height: 0,
-  });
+const [screenSize, setScreenSize] = useState({
+width: 0,
+height: 0,
+});
 
-  const tracks = useRef<Track[]>([]);
-  const nextTrackId = useRef(1);
+const tracks = useRef<Track[]>([]);
 
-  useEffect(() => {
-    function updateSize() {
-      setScreenSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    }
+useEffect(() => {
+function updateSize() {
+setScreenSize({
+width: window.innerWidth,
+height: window.innerHeight,
+});
+}
 
-    updateSize();
+```
+updateSize();
 
-    window.addEventListener("resize", updateSize);
+window.addEventListener("resize", updateSize);
 
-    return () => {
-      window.removeEventListener("resize", updateSize);
-    };
-  }, []);
+return () => {
+  window.removeEventListener("resize", updateSize);
+};
+```
 
-  if (
-    !videoWidth ||
-    !videoHeight ||
-    !screenSize.width ||
-    !screenSize.height
-  ) {
-    return null;
-  }
+}, []);
 
-  const scale = Math.max(
-    screenSize.width / videoWidth,
-    screenSize.height / videoHeight
-  );
+if (
+!videoWidth ||
+!videoHeight ||
+!screenSize.width ||
+!screenSize.height
+) {
+return null;
+}
 
-  const renderedWidth = videoWidth * scale;
-  const renderedHeight = videoHeight * scale;
+const scale = Math.max(
+screenSize.width / videoWidth,
+screenSize.height / videoHeight
+);
 
-  const cropX =
-    (renderedWidth - screenSize.width) / 2;
+const renderedWidth = videoWidth * scale;
+const renderedHeight = videoHeight * scale;
 
-  const cropY =
-    (renderedHeight - screenSize.height) / 2;
+const cropX =
+(renderedWidth - screenSize.width) / 2;
 
-  const smoothing = 0.15;
+const cropY =
+(renderedHeight - screenSize.height) / 2;
 
-  const detectedBoxes: Box[] = detections
-    .filter(
-      (detection) =>
-        detection.boundingBox !== undefined
-    )
-    .map((detection) => {
-      const box = detection.boundingBox!;
+const smoothing = 0.15;
+const maxTrackingDistance = 300;
 
-      return {
-        left: box.originX * scale - cropX,
-        top: box.originY * scale - cropY,
-        width: box.width * scale,
-        height: box.height * scale,
-      };
-    });
+const detectedBoxes: {
+box: Box;
+score?: number;
+}[] = [];
 
-  /*
-   * Ha nincs palack, fokozatosan töröljük
-   * a régi trackeket.
-   */
+detections.forEach((detection) => {
+if (!detection.boundingBox) {
+return;
+}
+
+```
+const box = detection.boundingBox;
+
+detectedBoxes.push({
+  box: {
+    left: box.originX * scale - cropX,
+    top: box.originY * scale - cropY,
+    width: box.width * scale,
+    height: box.height * scale,
+  },
+  score: detection.categories?.[0]?.score,
+});
+```
+
+});
+
+/*
+
+* Ha nincs detekció, töröljük a régi trackeket.
+  */
   if (detectedBoxes.length === 0) {
-    tracks.current = tracks.current.filter(
-      (track) => {
-        track.missingFrames += 1;
-        return track.missingFrames < 10;
-      }
-    );
+  tracks.current = [];
   } else {
-    /*
-     * Minden új detekciót megpróbálunk
-     * a legközelebbi korábbi palackhoz kötni.
-     */
+  /*
+
+  * Megjelöljük, melyik régi tracket használtuk már.
+    */
     const usedTracks = new Set<number>();
 
-    detectedBoxes.forEach((targetBox) => {
-      const targetCenterX =
-        targetBox.left +
-        targetBox.width / 2;
+```
+/*
+```
 
-      const targetCenterY =
-        targetBox.top +
-        targetBox.height / 2;
+```
+ * Először a legjobb párosításokat keressük meg.
+ */
+const matches: {
+  detectionIndex: number;
+  trackIndex: number;
+  distance: number;
+}[] = [];
 
-      let bestTrack: Track | null = null;
-      let bestDistance = Infinity;
+detectedBoxes.forEach((detected, detectionIndex) => {
+  const detectedCenterX =
+    detected.box.left +
+    detected.box.width / 2;
 
-      tracks.current.forEach((track) => {
-        if (usedTracks.has(track.id)) {
-          return;
-        }
+  const detectedCenterY =
+    detected.box.top +
+    detected.box.height / 2;
 
-        const trackCenterX =
-          track.box.left +
-          track.box.width / 2;
+  tracks.current.forEach((track, trackIndex) => {
+    const trackCenterX =
+      track.box.left +
+      track.box.width / 2;
 
-        const trackCenterY =
-          track.box.top +
-          track.box.height / 2;
+    const trackCenterY =
+      track.box.top +
+      track.box.height / 2;
 
-        const dx =
-          targetCenterX - trackCenterX;
+    const dx =
+      detectedCenterX - trackCenterX;
 
-        const dy =
-          targetCenterY - trackCenterY;
+    const dy =
+      detectedCenterY - trackCenterY;
 
-        const distance = Math.sqrt(
-          dx * dx + dy * dy
-        );
-
-        if (
-          distance < bestDistance &&
-          distance < 250
-        ) {
-          bestDistance = distance;
-          bestTrack = track;
-        }
-      });
-
-      if (bestTrack) {
-        usedTracks.add(bestTrack.id);
-
-        bestTrack.box = {
-          left:
-            bestTrack.box.left +
-            (targetBox.left -
-              bestTrack.box.left) *
-              smoothing,
-
-          top:
-            bestTrack.box.top +
-            (targetBox.top -
-              bestTrack.box.top) *
-              smoothing,
-
-          width:
-            bestTrack.box.width +
-            (targetBox.width -
-              bestTrack.box.width) *
-              smoothing,
-
-          height:
-            bestTrack.box.height +
-            (targetBox.height -
-              bestTrack.box.height) *
-              smoothing,
-        };
-
-        bestTrack.missingFrames = 0;
-      } else {
-        tracks.current.push({
-          id: nextTrackId.current++,
-          box: targetBox,
-          missingFrames: 0,
-        });
-      }
-    });
-
-    /*
-     * A régi, eltűnt trackeket eltávolítjuk.
-     */
-    tracks.current = tracks.current.filter(
-      (track) => {
-        if (!usedTracks.has(track.id)) {
-          track.missingFrames += 1;
-        }
-
-        return track.missingFrames < 10;
-      }
+    const distance = Math.sqrt(
+      dx * dx + dy * dy
     );
+
+    if (distance <= maxTrackingDistance) {
+      matches.push({
+        detectionIndex,
+        trackIndex,
+        distance,
+      });
+    }
+  });
+});
+
+/*
+ * A legközelebbi párosításokat használjuk először.
+ */
+matches.sort(
+  (a, b) => a.distance - b.distance
+);
+
+const matchedDetections = new Set<number>();
+
+matches.forEach((match) => {
+  if (
+    matchedDetections.has(
+      match.detectionIndex
+    )
+  ) {
+    return;
   }
 
-  /*
-   * Csak az aktív palackokat rajzoljuk ki.
-   */
-  return (
-    <div className="pointer-events-none absolute inset-0 z-30">
-      {tracks.current.map((track) => {
-        const score = detections.find(
-          (detection) => {
-            if (!detection.boundingBox) {
-              return false;
-            }
+  if (usedTracks.has(match.trackIndex)) {
+    return;
+  }
 
-            const box =
-              detection.boundingBox;
+  const detected =
+    detectedBoxes[match.detectionIndex];
 
-            const left =
-              box.originX * scale - cropX;
+  const track =
+    tracks.current[match.trackIndex];
 
-            const top =
-              box.originY * scale - cropY;
+  track.box = {
+    left:
+      track.box.left +
+      (detected.box.left -
+        track.box.left) *
+        smoothing,
 
-            const centerX =
-              left + box.width * scale / 2;
+    top:
+      track.box.top +
+      (detected.box.top -
+        track.box.top) *
+        smoothing,
 
-            const centerY =
-              top + box.height * scale / 2;
+    width:
+      track.box.width +
+      (detected.box.width -
+        track.box.width) *
+        smoothing,
 
-            const trackCenterX =
-              track.box.left +
-              track.box.width / 2;
+    height:
+      track.box.height +
+      (detected.box.height -
+        track.box.height) *
+        smoothing,
+  };
 
-            const trackCenterY =
-              track.box.top +
-              track.box.height / 2;
+  track.missingFrames = 0;
 
-            const dx =
-              centerX - trackCenterX;
-
-            const dy =
-              centerY - trackCenterY;
-
-            return (
-              Math.sqrt(
-                dx * dx + dy * dy
-              ) < 100
-            );
-          }
-        )?.categories?.[0]?.score;
-
-        return (
-          <div
-            key={track.id}
-            className="absolute rounded-lg border-4 border-green-400"
-            style={{
-              left: `${track.box.left}px`,
-              top: `${track.box.top}px`,
-              width: `${track.box.width}px`,
-              height: `${track.box.height}px`,
-            }}
-          >
-            <div className="absolute -top-8 left-0 rounded-md bg-green-500 px-2 py-1 text-sm font-bold text-black">
-              Palack
-              {score !== undefined
-                ? ` ${Math.round(
-                    score * 100
-                  )}%`
-                : ""}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+  usedTracks.add(match.trackIndex);
+  matchedDetections.add(
+    match.detectionIndex
   );
+});
+
+/*
+ * Az új, még nem követett palackokhoz
+ * új tracket hozunk létre.
+ */
+detectedBoxes.forEach(
+  (detected, detectionIndex) => {
+    if (
+      matchedDetections.has(
+        detectionIndex
+      )
+    ) {
+      return;
+    }
+
+    tracks.current.push({
+      box: detected.box,
+      missingFrames: 0,
+    });
+  }
+);
+
+/*
+ * Ha egy palackot néhány képkockán át
+ * nem látunk, még nem töröljük azonnal.
+ */
+tracks.current.forEach(
+  (track, trackIndex) => {
+    if (!usedTracks.has(trackIndex)) {
+      track.missingFrames += 1;
+    }
+  }
+);
+
+tracks.current =
+  tracks.current.filter(
+    (track) =>
+      track.missingFrames < 8
+  );
+```
+
+}
+
+return ( <div className="pointer-events-none absolute inset-0 z-30">
+{tracks.current.map(
+(track, index) => {
+return (
+<div
+key={index}
+className="absolute rounded-lg border-4 border-green-400"
+style={{
+left: `${track.box.left}px`,
+top: `${track.box.top}px`,
+width: `${track.box.width}px`,
+height: `${track.box.height}px`,
+}}
+> <div className="absolute -top-8 left-0 rounded-md bg-green-500 px-2 py-1 text-sm font-bold text-black">
+Palack </div> </div>
+);
+}
+)} </div>
+);
 }
