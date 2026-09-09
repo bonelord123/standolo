@@ -476,16 +476,3 @@ Folyadékszint:{" "}
 }
 
 
-### Mit fogsz most látni?
-
-A zöld keret mellett például:
-
-**Palack**  
-**Folyadékszint: 63%**
-
-és a kereten belül egy **piros vízszintes vonalat** ott, ahol a rendszer szerint a folyadékfelszín van.
-
-Ez most **kísérleti mérő**, nem állítom, hogy elsőre pontos lesz. A cél elsőként az, hogy az üdítős üveget mozgatva és különböző szintekre töltve lássuk, hogy a százalék **ténylegesen változik-e a folyadékszinttel**.
-
-Utána, ha működik, **ezt fogjuk pontosítani**, és csak ezután kötjük rá a konkrét palackprofilokra.
-```
