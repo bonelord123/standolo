@@ -9,7 +9,8 @@ import BottleOverlay from "@/components/camera/BottleOverlay";
 export default function Home() {
 const [cameraError, setCameraError] = useState("");
 
-const [detections, setDetections] = useState<Detection[]>([]);
+const [detections, setDetections] =
+useState<Detection[]>([]);
 
 const [videoSize, setVideoSize] = useState({
 width: 0,
@@ -35,16 +36,14 @@ setDetections(newDetections);
 },
 []
 
-
 );
 
 return ( <main className="relative h-screen w-screen overflow-hidden bg-black"> <div className="absolute inset-0 z-0"> <CameraView
-       videoRef={videoRef}
        onError={setCameraError}
        onDetections={handleDetections}
      /> </div>
 
-
+```
   <BottleOverlay
     videoRef={videoRef}
     detections={detections}
@@ -58,7 +57,6 @@ return ( <main className="relative h-screen w-screen overflow-hidden bg-black"> 
     </div>
   )}
 </main>
-
 
 );
 }
