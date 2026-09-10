@@ -39,11 +39,11 @@ setDetections(newDetections);
 );
 
 return ( <main className="relative h-screen w-screen overflow-hidden bg-black"> <div className="absolute inset-0 z-0"> <CameraView
+       videoRef={videoRef}
        onError={setCameraError}
        onDetections={handleDetections}
      /> </div>
 
-```
   <BottleOverlay
     videoRef={videoRef}
     detections={detections}
