@@ -1,6 +1,12 @@
+
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  RefObject,
+  useEffect,
+  useState,
+} from "react";
+
 import { Detection } from "@mediapipe/tasks-vision";
 
 import {
@@ -9,6 +15,7 @@ import {
 } from "@/lib/vision/bottleDetector";
 
 type CameraViewProps = {
+  videoRef: RefObject<HTMLVideoElement | null>;
   onError?: (message: string) => void;
   onDetections?: (
     detections: Detection[],
@@ -18,12 +25,13 @@ type CameraViewProps = {
 };
 
 export default function CameraView({
+  videoRef,
   onError,
   onDetections,
 }: CameraViewProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  const [status, setStatus] = useState("Kamera indítása...");
+  const [status, setStatus] = useState(
+    "Kamera indítása..."
+  );
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -34,24 +42,29 @@ export default function CameraView({
       try {
         setStatus("Kamera engedélyezése...");
 
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" },
-          },
-          audio: false,
-        });
+        stream =
+          await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: "environment" },
+            },
+            audio: false,
+          });
 
         const video = videoRef.current;
 
         if (!video) {
-          throw new Error("A video elem nem található.");
+          throw new Error(
+            "A video elem nem található."
+          );
         }
 
         video.srcObject = stream;
 
         await video.play();
 
-        setStatus("Kamera működik – AI modell betöltése...");
+        setStatus(
+          "Kamera működik – AI modell betöltése..."
+        );
 
         await initializeBottleDetector();
 
@@ -62,11 +75,14 @@ export default function CameraView({
             return;
           }
 
-          const currentVideo = videoRef.current;
+          const currentVideo =
+            videoRef.current;
 
           if (!currentVideo) {
             animationFrameId =
-              requestAnimationFrame(detectFrame);
+              requestAnimationFrame(
+                detectFrame
+              );
             return;
           }
 
@@ -76,12 +92,14 @@ export default function CameraView({
             currentVideo.videoHeight > 0
           ) {
             try {
-              const timestamp = performance.now();
+              const timestamp =
+                performance.now();
 
-              const detections = detectBottles(
-                currentVideo,
-                timestamp
-              );
+              const detections =
+                detectBottles(
+                  currentVideo,
+                  timestamp
+                );
 
               onDetections?.(
                 detections,
@@ -94,7 +112,9 @@ export default function CameraView({
                   `${detections.length} palack találva`
                 );
               } else {
-                setStatus("Nincs palack felismerve");
+                setStatus(
+                  "Nincs palack felismerve"
+                );
               }
             } catch (error) {
               console.error(
@@ -109,7 +129,9 @@ export default function CameraView({
           }
 
           animationFrameId =
-            requestAnimationFrame(detectFrame);
+            requestAnimationFrame(
+              detectFrame
+            );
         }
 
         detectFrame();
@@ -119,7 +141,9 @@ export default function CameraView({
           error
         );
 
-        setStatus("Kamera vagy AI hiba");
+        setStatus(
+          "Kamera vagy AI hiba"
+        );
 
         onError?.(
           "Nem sikerült elindítani a kamerát vagy az AI modellt."
@@ -132,15 +156,19 @@ export default function CameraView({
     return () => {
       running = false;
 
-      cancelAnimationFrame(animationFrameId);
+      cancelAnimationFrame(
+        animationFrameId
+      );
 
       if (stream) {
         stream
           .getTracks()
-          .forEach((track) => track.stop());
+          .forEach((track) =>
+            track.stop()
+          );
       }
     };
-  }, [onError, onDetections]);
+  }, [videoRef, onError, onDetections]);
 
   return (
     <div className="absolute inset-0">
@@ -160,3 +188,4 @@ export default function CameraView({
     </div>
   );
 }
+
